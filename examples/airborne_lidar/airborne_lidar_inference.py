@@ -1,7 +1,7 @@
 # add the parent folder to the python path to access convpoint library
 import sys
 import warnings
-sys.path.append('/gpfs/fs2/nrcan/geobase/transfer/work/deep_learning/lidar/CMM_2018/convpoint_tests/ConvPoint')
+sys.path.append('D:/DEV/ConvPoint-Dev')
 
 import argparse
 import numpy as np
@@ -12,22 +12,35 @@ import torch.utils.data
 from pathlib import Path
 from examples.airborne_lidar.airborne_lidar_seg import get_model, nearest_correspondance, count_parameters, class_mode
 import laspy
-import yaml
+#import yaml
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--modeldir", default='/wspace/disk01/lidar/convpoint_tests/results/SegBig_8168_drop0_2020-03-12-07-47-46', type=str)
-    parser.add_argument("--rootdir", default='/wspace/disk01/lidar/POINTCLOUD/data/', type=str,
+    parser.add_argument("--modeldir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/results/SegBig_8168_drop0_2020-04-23-15-39-35', type=str)
+    parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/data', type=str,
                         help="Folder conntaining tst subfolder with las files.")
-    parser.add_argument("--test_step", default=15, type=float)
+    parser.add_argument("--test_step", default=5, type=float)
+    parser.add_argument("--batchsize", "-b", default=32, type=int)
+    parser.add_argument("--npoints", default=8168, type=int, help="Number of points to be sampled in the block.")
+    parser.add_argument("--blocksize", default=25, type=int,
+                        help="Size in meters of the infinite vertical column, to be processed.")
 
+    parser.add_argument("--num_workers", default=3, type=int)
+    parser.add_argument("--model", default="SegBig", type=str,
+                        help="SegBig is the only available model at this time, for this dataset.")
+    parser.add_argument("--features", default="xyzni", type=str,
+                        help="Features to process. xyzni means xyz + number of returns + intensity. "
+                             "Currently, only xyz and xyzni are supported for this dataset.")
+    parser.add_argument("--mode", default=2, type=int, help="Class mode. Currently 2 choices available. "
+                                                            "1: building, water, ground."
+                                                            "2: building, water, ground, low vegetation and medium + high vegetation")
     args = parser.parse_args()
-    config_dict = read_config_from_yaml(Path(args.modeldir))
-    arg_dict = args.__dict__
-    for key, value in config_dict.items():
-        if key not in ['rootdir', 'test_step']:
-            arg_dict[key] = value
+    #config_dict = read_config_from_yaml(Path(args.modeldir))
+    #arg_dict = args.__dict__
+    #for key, value in config_dict.items():
+    #    if key not in ['rootdir', 'test_step']:
+    #        arg_dict[key] = value
 
     return args
 
@@ -93,7 +106,7 @@ class PartDatasetTest():
         mask = np.logical_and(mask_x, mask_y)
         return mask
 
-    def __init__(self, in_file, block_size=8, npoints=8192, test_step=5, features=False):
+    def __init__(self, in_file, block_size=25, npoints=8192, test_step=0.8, features=False):
 
         self.filename = in_file
         self.bs = block_size
@@ -144,8 +157,14 @@ def test(args, filename, model_folder, info_class):
     nb_class = info_class['nb_class']
     # create the network
     print("Creating network...")
+    state = torch.load(model_folder / "state_dict.pth")
+    arg_dict = args.__dict__
+    config_dict = state['args'].__dict__
+    for key, value in config_dict.items():
+        if key not in ['rootdir', 'num_workers', 'batch_size']:
+            arg_dict[key] = value
     net, features = get_model(nb_class, args)
-    net.load_state_dict(torch.load(model_folder / "state_dict.pth"))
+    net.load_state_dict(state['state_dict'])
     net.cuda()
     net.eval()
     print(f"Number of parameters in the model: {count_parameters(net):,}")
@@ -153,6 +172,8 @@ def test(args, filename, model_folder, info_class):
     # for filename in flist_test:
     print(filename)
     with laspy.file.File(Path(args.rootdir) / f"{filename}.las", mode='r') as in_file:
+        write_to_h5(in_file)
+
         ds_tst = PartDatasetTest(in_file, block_size=args.blocksize, npoints=args.npoints, test_step=args.test_step, features=features)
         tst_loader = torch.utils.data.DataLoader(ds_tst, batch_size=args.batchsize, shuffle=False, num_workers=args.num_workers)
 

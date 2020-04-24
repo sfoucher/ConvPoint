@@ -3,7 +3,7 @@
 # add the parent folder to the python path to access convpoint library
 import sys
 import warnings
-sys.path.append('/gpfs/fs2/nrcan/geobase/transfer/work/deep_learning/lidar/CMM_2018/convpoint_tests/ConvPoint')
+sys.path.append('D:/DEV/ConvPoint-Dev')
 
 import argparse
 import numpy as np
@@ -29,19 +29,21 @@ def parse_args():
     parser.add_argument("--savepts", action="store_true")
     parser.add_argument("--savedir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/results', type=str)
     parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/prepared', type=str)
-    parser.add_argument("--batchsize", "-b", default=10, type=int)
+    parser.add_argument("--batchsize", "-b", default=8, type=int)
     parser.add_argument("--npoints", default=8168, type=int, help="Number of points to be sampled in the block.")
-    parser.add_argument("--blocksize", default=50, type=int,
-                        help="Size of the infinite vertical column, to be processed.")
-    parser.add_argument("--iter", default=1, type=int)
-    parser.add_argument("--num_workers", default=3, type=int)
+    parser.add_argument("--blocksize", default=25, type=int,
+                        help="Size in meters of the infinite vertical column, to be processed.")
+    parser.add_argument("--iter", default=200, type=int,
+                        help="Number of mini-batches to run for training.")
+    parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--features", default="xyzni", type=str,
                         help="Features to process. xyzni means xyz + number of returns + intensity. "
                              "Currently, only xyz and xyzni are supported for this dataset.")
-    parser.add_argument("--test_step", default=50, type=float)
+    parser.add_argument("--test_step", default=5, type=float,
+                        help="Discretization step in meters applied at test time.")
     parser.add_argument("--test_labels", default=True, type=bool, help="Labels available for test dataset")
-    parser.add_argument("--val_iter", default=1, type=int, help="Number of iterations at validation.")
-    parser.add_argument("--nepochs", default=50, type=int)
+    parser.add_argument("--val_iter", default=10, type=int, help="Number of mini-bactch iterations at validation.")
+    parser.add_argument("--nepochs", default=20, type=int)
     parser.add_argument("--model", default="SegBig", type=str,
                         help="SegBig is the only available model at this time, for this dataset.")
     parser.add_argument("--drop", default=0, type=float)
@@ -234,21 +236,32 @@ class PartDatasetTest():
         self.npoints = npoints
         self.features = features
         self.step = test_step
-
+        self.islabels= labels
+        self.h5file = self.folder / f"{self.filename}.hdfs"
         # load the points
-        data_file = h5py.File(self.folder / f"{filename}.hdfs", 'r')
-        self.xyzni = data_file["xyzni"][:]
-        if labels:
-            self.labels = data_file["labels"][:]
-        else:
-            self.labels = None
+        with h5py.File(self.h5file, 'r') as data_file:
+            self.xyzni = data_file["xyzni"][:]
+            if self.islabels:
+                self.labels = data_file["labels"][:]
+            else:
+                self.labels = None
 
-        discretized = ((self.xyzni[:, :2]).astype(float) / self.step).astype(int)
-        self.pts = np.unique(discretized, axis=0)
-        self.pts = self.pts.astype(np.float) * self.step
+            discretized = ((self.xyzni[:, :2]).astype(float) / self.step).astype(int)
+            self.pts = np.unique(discretized, axis=0)
+            self.pts = self.pts.astype(np.float) * self.step
 
     def __getitem__(self, index):
+        if self.pts is None:
+            with h5py.File(self.h5file, 'r') as data_file:
+                self.xyzni = data_file["xyzni"][:]
+                if self.islabels:
+                    self.labels = data_file["labels"][:]
+                else:
+                    self.labels = None
 
+                discretized = ((self.xyzni[:, :2]).astype(float) / self.step).astype(int)
+                self.pts = np.unique(discretized, axis=0)
+                self.pts = self.pts.astype(np.float) * self.step
         # get the data
         mask = self.compute_mask(self.pts[index], self.bs)
         pts = self.xyzni[mask]
@@ -276,6 +289,17 @@ class PartDatasetTest():
         return pts, fts, indices
 
     def __len__(self):
+        if self.pts is None:
+            with h5py.File(self.h5file, 'r') as data_file:
+                self.xyzni = data_file["xyzni"][:]
+                if self.islabels:
+                    self.labels = data_file["labels"][:]
+                else:
+                    self.labels = None
+
+                discretized = ((self.xyzni[:, :2]).astype(float) / self.step).astype(int)
+                self.pts = np.unique(discretized, axis=0)
+                self.pts = self.pts.astype(np.float) * self.step
         return len(self.pts)
 
 
@@ -409,7 +433,14 @@ def train(args, dataset_dict, info_class):
         fscore_val = metrics.stats_f1score_per_class(cm_val)
 
         # save the model
-        torch.save(net.state_dict(), root_folder / "state_dict.pth")
+
+        state = {
+            'epoch': epoch,
+            'state_dict': net.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'args':args
+        }
+        torch.save(state, root_folder / "state_dict.pth")
 
         # write the logs
         val_metrics_values = {'loss': f"{val_loss / cm_val.sum():.4e}", 'acc': acc_val[0], 'iou': iou_val[0], 'fscore': fscore_val[0]}
@@ -427,7 +458,8 @@ def test(args, flist_test, model_folder, info_class):
     # create the network
     print("Creating network...")
     net, features = get_model(nb_class, args)
-    net.load_state_dict(torch.load(model_folder / "state_dict.pth"))
+    state = torch.load(model_folder / "state_dict.pth")
+    net.load_state_dict(state['state_dict'])
     net.cuda()
     net.eval()
     print(f"Number of parameters in the model: {count_parameters(net):,}")
