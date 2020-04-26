@@ -1,9 +1,12 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
-    name='ConvPoint-Dev',
+    name='ConvPoint',
     version='0.1',
-    packages=['utils', 'networks', 'convpoint', 'convpoint.nn', 'convpoint.nn.legacy'],
+    packages=find_packages(),
+    install_requires=[
+        "laspy","plyfile"
+    ],
     url='https://github.com/sfoucher/ConvPoint',
     license='',
     author='fouchesa',
