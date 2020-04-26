@@ -10,7 +10,7 @@ import time
 import torch
 import torch.utils.data
 from pathlib import Path
-from examples.airborne_lidar.airborne_lidar_seg import get_model, nearest_correspondance, count_parameters, class_mode
+from airborne_lidar_seg import get_model, nearest_correspondance, count_parameters, class_mode
 import laspy
 import h5py
 from airborne_lidar_utils import write_features

@@ -17,10 +17,10 @@ import torch.utils.data
 import torch.nn.functional as F
 import convpoint.knn.lib.python.nearest_neighbors as nearest_neighbors
 import utils.metrics as metrics
-from examples.airborne_lidar.airborne_lidar_utils import InformationLogger, print_metric #, write_config
+from airborne_lidar_utils import InformationLogger, print_metric #, write_config
 import h5py
 from pathlib import Path
-from examples.airborne_lidar.airborne_lidar_viz import prediction2ply, error2ply
+from airborne_lidar_viz import prediction2ply, error2ply
 
 
 def parse_args():
