@@ -20,8 +20,8 @@ from airborne_lidar_utils import write_features
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--modeldir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/results/SegBig_8168_drop0_2020-04-23-15-39-35', type=str)
-    parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/data', type=str,
+    parser.add_argument("--modeldir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/results/SegBig_8168_drop0_2020-04-23-15-39-35/state_dict.pth', type=str)
+    parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/data/tst', type=str,
                         help="Folder conntaining tst subfolder with las files.")
     parser.add_argument("--test_step", default=5, type=float)
     parser.add_argument("--batchsize", "-b", default=32, type=int)
@@ -181,7 +181,7 @@ def test(args, filename, model_folder, info_class):
     nb_class = info_class['nb_class']
     # create the network
     print("Creating network...")
-    state = torch.load(model_folder / "state_dict.pth")
+    state = torch.load(model_folder)
     arg_dict = args.__dict__
     config_dict = state['args'].__dict__
     for key, value in config_dict.items():
@@ -252,20 +252,19 @@ def main():
     # create the file lists (trn / val / tst)
     print("Create file list...")
     base_dir = Path(args.rootdir)
-    dataset_dict = {'tst': []}
+    dataset_dict = []
 
-    for dataset in dataset_dict.keys():
-        for file in (base_dir / dataset).glob('*.las'):
-            dataset_dict[dataset].append(f"{dataset}/{file.stem}")
+    for file in (base_dir).glob('*.las'):
+        dataset_dict.append(file.stem)
 
-        if len(dataset_dict[dataset]) == 0:
-            warnings.warn(f"{base_dir / dataset} is empty")
+    if len(dataset_dict) == 0:
+        warnings.warn(f"{base_dir} is empty")
 
-    print(f"Las files in tst dataset: {len(dataset_dict['tst'])}")
+    print(f"Las files in tst dataset: {len(dataset_dict)}")
 
     info_class = class_mode(args.mode)
     model_folder = Path(args.modeldir)
-    for filename in dataset_dict['tst']:
+    for filename in dataset_dict:
         test(args, filename, model_folder, info_class)
 
 
