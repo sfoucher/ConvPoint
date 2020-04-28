@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument("--npoints", default=8168, type=int, help="Number of points to be sampled in the block.")
     parser.add_argument("--blocksize", default=25, type=int,
                         help="Size in meters of the infinite vertical column, to be processed.")
-    parser.add_argument("--iter", default=200, type=int,
+    parser.add_argument("--iter", default=400, type=int,
                         help="Number of mini-batches to run for training.")
     parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--features", default="xyzni", type=str,
@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument("--test_step", default=5, type=float,
                         help="Discretization step in meters applied at test time.")
     parser.add_argument("--test_labels", default=True, type=bool, help="Labels available for test dataset")
-    parser.add_argument("--val_iter", default=10, type=int, help="Number of mini-bactch iterations at validation.")
+    parser.add_argument("--val_iter", default=20, type=int, help="Number of mini-bactch iterations at validation.")
     parser.add_argument("--nepochs", default=20, type=int)
     parser.add_argument("--model", default="SegBig", type=str,
                         help="SegBig is the only available model at this time, for this dataset.")
