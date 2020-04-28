@@ -192,12 +192,13 @@ def test(args, filename, model_folder, info_class):
     net.cuda()
     net.eval()
     print(f"Number of parameters in the model: {count_parameters(net):,}")
-
+    las_filename= filename
     # for filename in flist_test:
     print(filename)
-    filename= Path(args.rootdir) / f"{filename}.las"
-    filename= write_las_to_h5(filename)
-
+    filename0= Path(args.rootdir) / f"{filename}.las"
+    filename= write_las_to_h5(filename0)
+    out_folder = model_folder.parent / 'tst'
+    out_folder.mkdir(exist_ok=True)
 
     ds_tst = PartDatasetTest(filename, block_size=args.blocksize, npoints=args.npoints, test_step=args.test_step, features=features)
     tst_loader = torch.utils.data.DataLoader(ds_tst, batch_size=args.batchsize, shuffle=False, num_workers=args.num_workers)
@@ -237,12 +238,11 @@ def test(args, filename, model_folder, info_class):
     scores = scores.argmax(1)
 
     # Save predictions
-    out_folder = model_folder / 'tst'
-    out_folder.mkdir(exist_ok=True)
-    with laspy.file.File(filename) as in_file:
+
+    with laspy.file.File(filename0) as in_file:
         header = in_file.header
         xyz = np.vstack((in_file.x, in_file.y, in_file.z)).transpose()
-        write_to_las(model_folder / f"{filename}_predictions.las", xyz=xyz, pred=scores, header=header,
+        write_to_las(out_folder / f"{las_filename}_predictions.las", xyz=xyz, pred=scores, header=header,
                  info_class=info_class['class_info'])
 
 
