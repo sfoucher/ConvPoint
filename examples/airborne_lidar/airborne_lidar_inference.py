@@ -20,7 +20,7 @@ from airborne_lidar_utils import write_features
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--modeldir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/results/SegBig_8168_drop0_2020-04-23-15-39-35/state_dict.pth', type=str)
+    parser.add_argument("--modeldir", default='D:\DEV\ConvPoint-Dev\models\state_dict_dales.pth', type=str)
     parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/data/tst', type=str,
                         help="Folder conntaining tst subfolder with las files.")
     parser.add_argument("--test_step", default=5, type=float)
@@ -32,12 +32,14 @@ def parse_args():
     parser.add_argument("--num_workers", default=3, type=int)
     parser.add_argument("--model", default="SegBig", type=str,
                         help="SegBig is the only available model at this time, for this dataset.")
-    parser.add_argument("--features", default="xyzni", type=str,
-                        help="Features to process. xyzni means xyz + number of returns + intensity. "
+    parser.add_argument("--features", default="xyz", type=str,
+                        help="Features to process. xyzni means xyz + number of returns + intensity. Default is xyz."
                              "Currently, only xyz and xyzni are supported for this dataset.")
-    parser.add_argument("--mode", default=2, type=int, help="Class mode. Currently 2 choices available. "
+    parser.add_argument("--mode", default=4, type=int, help="Class mode. Currently 2 choices available. "
                                                             "1: building, water, ground."
-                                                            "2: building, water, ground, low vegetation and medium + high vegetation")
+                                                            "2: 5 classes: building, water, ground, low vegetation and medium + high vegetation"
+                                                            "3: 6 classes: building, water, ground, low vegetation, medium and high vegetation"
+                                                            "4: DALES.")
     args = parser.parse_args()
     #config_dict = read_config_from_yaml(Path(args.modeldir))
     #arg_dict = args.__dict__

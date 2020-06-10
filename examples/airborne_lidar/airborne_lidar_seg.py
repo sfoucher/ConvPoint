@@ -28,30 +28,31 @@ def parse_args():
     parser.add_argument("--test", default=True)
     parser.add_argument("--savepts", action="store_true")
     parser.add_argument("--savedir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/results', type=str)
-    parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/prepared', type=str)
+    parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/prepared/DALES', type=str)
     parser.add_argument("--batchsize", "-b", default=8, type=int)
     parser.add_argument("--npoints", default=8168, type=int, help="Number of points to be sampled in the block.")
     parser.add_argument("--blocksize", default=25, type=int,
                         help="Size in meters of the infinite vertical column, to be processed.")
-    parser.add_argument("--iter", default=400, type=int,
+    parser.add_argument("--iter", default=600, type=int,
                         help="Number of mini-batches to run for training.")
     parser.add_argument("--num_workers", default=4, type=int)
-    parser.add_argument("--features", default="xyzni", type=str,
+    parser.add_argument("--features", default="xyz", type=str,
                         help="Features to process. xyzni means xyz + number of returns + intensity. "
-                             "Currently, only xyz and xyzni are supported for this dataset.")
+                             "Currently, only xyz and xyzni are supported for this dataset. Default is xyz.")
     parser.add_argument("--test_step", default=5, type=float,
                         help="Discretization step in meters applied at test time.")
     parser.add_argument("--test_labels", default=True, type=bool, help="Labels available for test dataset")
-    parser.add_argument("--val_iter", default=20, type=int, help="Number of mini-bactch iterations at validation.")
+    parser.add_argument("--val_iter", default=60, type=int, help="Number of mini-bactch iterations at validation.")
     parser.add_argument("--nepochs", default=20, type=int)
     parser.add_argument("--model", default="SegBig", type=str,
                         help="SegBig is the only available model at this time, for this dataset.")
     parser.add_argument("--drop", default=0, type=float)
 
     parser.add_argument("--lr", default=1e-3, help="Learning rate")
-    parser.add_argument("--mode", default=2, type=int, help="Class mode. Currently 2 choices available. "
+    parser.add_argument("--mode", default=4, type=int, help="Class mode. Currently 2 choices available. "
                                                             "1: building, water, ground."
-                                                            "2: building, water, ground, low vegetation and medium + high vegetation")
+                                                            "2: 5 classes: building, water, ground, low vegetation and medium + high vegetation"
+                                                            "3: 6 classes: building, water, ground, low vegetation, medium and high vegetation")
     args = parser.parse_args()
     return args
 
@@ -122,14 +123,27 @@ Entit
                        '6': {'name': 'Building', 'color': [223, 52, 52], 'mode': 0},  # red
                        '9': {'name': 'Water', 'color': [95, 156, 196], 'mode': 0}  # blue
                        }
+    dales_class_def = {'1': {'name': 'Ground', 'color': [233, 233, 229], 'mode': 0},  # light grey
+                       '2': {'name': 'vegetation', 'color': [77, 174, 84], 'mode': 0},  # bright green
+                       '3': {'name': 'cars', 'color': [255, 163, 148], 'mode': 0},  # bluegreen
+                       '4': {'name': 'trucks', 'color': [255, 135, 75], 'mode': 0},  # dark green
+                       '5': {'name': 'power lines', 'color': [255, 135, 75], 'mode': 0},  # dark green
+                       '6': {'name': 'fences', 'color': [255, 135, 75], 'mode': 0},  # dark green
+                       '7': {'name': 'poles', 'color': [255, 135, 75], 'mode': 0},  # dark green
+                       '8': {'name': 'Building', 'color': [223, 52, 52], 'mode': 0}
+                       }
     coi = {}
     unique_class = []
     if mode == 1:
         asprs_class_to_use = {'6': 1, '9': 2, '2': 3}
 
     elif mode == 2:
-        asprs_class_to_use = {'6': 1, '9': 2, '2': 3, '3': 4, '4': 5, '5': 5}
-
+        asprs_class_to_use = {'6': 1, '9': 2, '2': 3, '3': 4, '4': 5, '5': 5}  # considering medium and high vegetation as the same class
+    elif mode == 3:
+        asprs_class_to_use = {'6': 1, '9': 2, '2': 3, '3': 4, '4': 5, '5': 6} # considering medium and high vegetation as different classes
+    elif mode == 4:
+        asprs_class_def= dales_class_def
+        asprs_class_to_use = {'1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8} # ground(1), vegetation(2), cars(3), trucks(4), power lines(5), fences(6), poles(7) and buildings(8)
     else:
         raise ValueError(f"Class mode provided ({mode}) is not defined.")
 
