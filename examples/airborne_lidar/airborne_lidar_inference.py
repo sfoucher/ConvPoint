@@ -191,7 +191,10 @@ def test(args, filename, model_folder, info_class):
             arg_dict[key] = value
     net, features = get_model(nb_class, args)
     net.load_state_dict(state['state_dict'])
-    net.cuda()
+    if torch.cuda.is_available():
+        net.cuda()
+    else:
+        net.cpu()
     net.eval()
     print(f"Number of parameters in the model: {count_parameters(net):,}")
     las_filename= filename
@@ -214,8 +217,9 @@ def test(args, filename, model_folder, info_class):
         t = tqdm(tst_loader, ncols=150)
         for pts, features, indices in t:
             t1 = time.time()
-            features = features.cuda()
-            pts = pts.cuda()
+            if torch.cuda.is_available():
+                features = features.cuda()
+                pts = pts.cuda()
             outputs = net(features, pts)
             t2 = time.time()
 
