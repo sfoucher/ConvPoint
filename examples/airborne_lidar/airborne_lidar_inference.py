@@ -183,7 +183,10 @@ def test(args, filename, model_folder, info_class):
     nb_class = info_class['nb_class']
     # create the network
     print("Creating network...")
-    state = torch.load(model_folder)
+    if torch.cuda.is_available():
+        state = torch.load(model_folder)
+    else:
+        torch.load('/opt/ogc/ConvPoint/models/state_dict_dales.pth',map_location=torch.device('cpu'))
     arg_dict = args.__dict__
     config_dict = state['args'].__dict__
     for key, value in config_dict.items():
