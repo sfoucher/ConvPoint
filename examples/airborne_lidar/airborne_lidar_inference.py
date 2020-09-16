@@ -192,10 +192,10 @@ def load_model_eval(model_path, nb_class, args):
     else:
         net.cpu()
     net.eval()
-    return net
+    return net, features
 
 
-def test(filename, model, info_class, args):
+def test(filename, model, model_features, info_class, args):
     nb_class = info_class['nb_class']
     print(f"Number of parameters in the model: {count_parameters(model):,}")
     las_filename = filename
@@ -210,7 +210,7 @@ def test(filename, model, info_class, args):
     outdir.mkdir(exist_ok=True)
 
     ds_tst = PartDatasetTest(filename, block_size=args.blocksize, npoints=args.npoints,
-                             test_step=args.test_step, features=args.features)
+                             test_step=args.test_step, features=model_features)
     tst_loader = torch.utils.data.DataLoader(ds_tst, batch_size=args.batchsize,
                                              shuffle=False, num_workers=args.num_workers)
 
@@ -275,9 +275,9 @@ def main():
     print(f"Las files in tst dataset: {len(dataset_dict)}")
 
     info_class = class_mode(args.mode)
-    model = load_model_eval(Path(args.model_pth), info_class['nb_class'], args)
+    model, feats = load_model_eval(Path(args.model_pth), info_class['nb_class'], args)
     for filename in dataset_dict:
-        test(filename, model, info_class, args)
+        test(filename, model, feats, info_class, args)
 
 
 if __name__ == '__main__':
