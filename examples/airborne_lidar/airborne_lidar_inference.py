@@ -45,6 +45,7 @@ def parse_args():
                              "3: 6 classes: building, water, ground, low vegetation, medium and high vegetation"
                              "4: DALES.")
     args = parser.parse_args()
+    print(args)
     return args
 
 
