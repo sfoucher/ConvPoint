@@ -21,7 +21,7 @@ from airborne_lidar_utils import write_features
 def parse_args():
     parser = argparse.ArgumentParser()
     # '--modeldir' for backward compatibility
-    parser.add_argument("--model", "--modeldir", default='D:/DEV/ConvPoint-Dev/models/state_dict_dales.pth', type=str)
+    parser.add_argument("--model_pth", "--modeldir", default='D:/DEV/ConvPoint-Dev/models/state_dict_dales.pth', type=str)
     parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/data/tst', type=str,
                         help="Directory containing input test las files.")
     parser.add_argument("--outdir", default=None, type=str,
@@ -274,7 +274,7 @@ def main():
     print(f"Las files in tst dataset: {len(dataset_dict)}")
 
     info_class = class_mode(args.mode)
-    model = load_model_eval(Path(args.model), info_class['nb_class'], args)
+    model = load_model_eval(Path(args.model_pth), info_class['nb_class'], args)
     for filename in dataset_dict:
         test(filename, model, info_class, args)
 
