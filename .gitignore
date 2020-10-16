@@ -1,8 +1,16 @@
+## IDE
+.idea
+.vscode
+
+## Python caching/build
 .ipynb
 __pycache__
-.vscode
 build
 lib
+*.egg*
+
+## Data
 convpoint_tests
 .laz
 .las
+

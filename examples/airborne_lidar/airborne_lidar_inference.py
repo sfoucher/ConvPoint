@@ -2,27 +2,30 @@
 import sys
 import warnings
 sys.path.append('D:/DEV/ConvPoint-Dev')
-from pathlib import Path
+
 import argparse
+import h5py
+import laspy
 import numpy as np
-from tqdm import tqdm
 import time
 import torch
 import torch.utils.data
+from torch.utils.data import Dataset
 from pathlib import Path
-from airborne_lidar_seg import get_model, nearest_correspondance, count_parameters, class_mode
-import laspy
-import h5py
-from airborne_lidar_utils import write_features
+from tqdm import tqdm
 
-#import yaml
+from airborne_lidar_seg import get_model, nearest_correspondance, count_parameters, class_mode
+from airborne_lidar_utils import write_features
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--modeldir", default='D:\DEV\ConvPoint-Dev\models\state_dict_dales.pth', type=str)
+    # '--modeldir' for backward compatibility
+    parser.add_argument("--model_pth", "--modeldir", default='D:/DEV/ConvPoint-Dev/models/state_dict_dales.pth', type=str)
     parser.add_argument("--rootdir", default='D:/DEV/ConvPoint-Dev/convpoint_tests/data/tst', type=str,
-                        help="Folder conntaining tst subfolder with las files.")
+                        help="Directory containing input test las files.")
+    parser.add_argument("--outdir", default=None, type=str,
+                        help="Directory where to output inference results (default: <rootdir>/out).")
     parser.add_argument("--test_step", default=5, type=float)
     parser.add_argument("--batchsize", "-b", default=32, type=int)
     parser.add_argument("--npoints", default=8168, type=int, help="Number of points to be sampled in the block.")
@@ -35,25 +38,15 @@ def parse_args():
     parser.add_argument("--features", default="xyz", type=str,
                         help="Features to process. xyzni means xyz + number of returns + intensity. Default is xyz."
                              "Currently, only xyz and xyzni are supported for this dataset.")
-    parser.add_argument("--mode", default=4, type=int, help="Class mode. Currently 2 choices available. "
-                                                            "1: building, water, ground."
-                                                            "2: 5 classes: building, water, ground, low vegetation and medium + high vegetation"
-                                                            "3: 6 classes: building, water, ground, low vegetation, medium and high vegetation"
-                                                            "4: DALES.")
+    parser.add_argument("--mode", default=4, type=int,
+                        help="Class mode. Currently 2 choices available. "
+                             "1: building, water, ground."
+                             "2: 5 classes: building, water, ground, low vegetation and medium + high vegetation"
+                             "3: 6 classes: building, water, ground, low vegetation, medium and high vegetation"
+                             "4: DALES.")
     args = parser.parse_args()
-    #config_dict = read_config_from_yaml(Path(args.modeldir))
-    #arg_dict = args.__dict__
-    #for key, value in config_dict.items():
-    #    if key not in ['rootdir', 'test_step']:
-    #        arg_dict[key] = value
-
+    print(args)
     return args
-
-
-def read_config_from_yaml(folder):
-    with open(folder / 'config.yaml', 'r') as in_file:
-        yaml_dict = yaml.load(in_file, Loader=yaml.FullLoader)
-    return yaml_dict
 
 
 def read_las_format(in_file):
@@ -86,9 +79,10 @@ def write_las_to_h5(filename):
     with laspy.file.File(filename) as in_file:
         xyzni = read_las_format(in_file)
 
-        filename= f"{filename.parent / filename.name.split('.')[0]}_prepared.hdfs"
+        filename = f"{filename.parent / filename.name.split('.')[0]}_prepared.hdfs"
         write_features(filename, xyzni=xyzni)
         return filename
+
 
 def write_to_las(filename, xyz, pred, header, info_class):
     """Write xyz and ASPRS predictions to las file format. """
@@ -110,7 +104,7 @@ def pred_to_asprs(pred, info_class):
 
 
 # Part dataset only for testing
-class PartDatasetTest():
+class PartDatasetTest(Dataset):
 
     def compute_mask(self, pt, bs):
         # build the mask
@@ -126,7 +120,7 @@ class PartDatasetTest():
         self.npoints = npoints
         self.features = features
         self.step = test_step
-        self.xyzni= None
+        self.xyzni = None
         # load the points
         if self.xyzni is None:
             # load the points
@@ -179,14 +173,13 @@ class PartDatasetTest():
         return len(self.pts)
 
 
-def test(args, filename, model_folder, info_class):
-    nb_class = info_class['nb_class']
+def load_model_eval(model_path, nb_class, args):
     # create the network
     print("Creating network...")
     if torch.cuda.is_available():
-        state = torch.load(model_folder)
+        state = torch.load(model_path)
     else:
-        state = torch.load('/opt/ogc/ConvPoint/models/state_dict_dales.pth',map_location=torch.device('cpu'))
+        state = torch.load(model_path, map_location=torch.device('cpu'))
     arg_dict = args.__dict__
     config_dict = state['args'].__dict__
     for key, value in config_dict.items():
@@ -199,17 +192,27 @@ def test(args, filename, model_folder, info_class):
     else:
         net.cpu()
     net.eval()
-    print(f"Number of parameters in the model: {count_parameters(net):,}")
-    las_filename= filename
+    return net, features
+
+
+def test(filename, model, model_features, info_class, args):
+    nb_class = info_class['nb_class']
+    print(f"Number of parameters in the model: {count_parameters(model):,}")
+    las_filename = filename
     # for filename in flist_test:
     print(filename)
-    filename0= Path(args.rootdir) / f"{filename}.las"
-    filename= write_las_to_h5(filename0)
-    out_folder = model_folder.parent / 'tst'
-    out_folder.mkdir(exist_ok=True)
+    filename0 = Path(args.rootdir) / f"{filename}.las"
+    filename = write_las_to_h5(filename0)
+    if args.outdir:
+        outdir = Path(args.outdir)
+    else:
+        outdir = Path(args.rootdir) / 'out'
+    outdir.mkdir(exist_ok=True)
 
-    ds_tst = PartDatasetTest(filename, block_size=args.blocksize, npoints=args.npoints, test_step=args.test_step, features=features)
-    tst_loader = torch.utils.data.DataLoader(ds_tst, batch_size=args.batchsize, shuffle=False, num_workers=args.num_workers)
+    ds_tst = PartDatasetTest(filename, block_size=args.blocksize, npoints=args.npoints,
+                             test_step=args.test_step, features=model_features)
+    tst_loader = torch.utils.data.DataLoader(ds_tst, batch_size=args.batchsize,
+                                             shuffle=False, num_workers=args.num_workers)
 
     xyz = ds_tst.xyzni[:, :3]
     scores = np.zeros((xyz.shape[0], nb_class))
@@ -223,7 +226,7 @@ def test(args, filename, model_folder, info_class):
             if torch.cuda.is_available():
                 features = features.cuda()
                 pts = pts.cuda()
-            outputs = net(features, pts)
+            outputs = model(features, pts)
             t2 = time.time()
 
             outputs_np = outputs.cpu().numpy().reshape((-1, nb_class))
@@ -251,8 +254,8 @@ def test(args, filename, model_folder, info_class):
     with laspy.file.File(filename0) as in_file:
         header = in_file.header
         xyz = np.vstack((in_file.x, in_file.y, in_file.z)).transpose()
-        write_to_las(out_folder / f"{las_filename}_predictions.las", xyz=xyz, pred=scores, header=header,
-                 info_class=info_class['class_info'])
+        write_to_las(outdir / f"{las_filename}_predictions.las",
+                     xyz=xyz, pred=scores, header=header, info_class=info_class['class_info'])
 
 
 def main():
@@ -263,7 +266,7 @@ def main():
     base_dir = Path(args.rootdir)
     dataset_dict = []
 
-    for file in (base_dir).glob('*.las'):
+    for file in base_dir.glob('*.las'):
         dataset_dict.append(file.stem)
 
     if len(dataset_dict) == 0:
@@ -272,9 +275,9 @@ def main():
     print(f"Las files in tst dataset: {len(dataset_dict)}")
 
     info_class = class_mode(args.mode)
-    model_folder = Path(args.modeldir)
+    model, feats = load_model_eval(Path(args.model_pth), info_class['nb_class'], args)
     for filename in dataset_dict:
-        test(args, filename, model_folder, info_class)
+        test(filename, model, feats, info_class, args)
 
 
 if __name__ == '__main__':
