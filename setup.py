@@ -5,7 +5,7 @@ setup(
     version='0.1',
     packages=find_packages(),
     install_requires=[
-        "laspy","plyfile"
+        "laspy==1.7.*","plyfile","wandb"
     ],
     url='https://github.com/sfoucher/ConvPoint',
     license='',
