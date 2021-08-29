@@ -27,6 +27,7 @@ def read_las_format(raw_path, normalize=True):
     If normalize is set to True, will normalize XYZ and intensity between 0 and 1."""
 
     in_file = laspy.file.File(raw_path, mode='r')
+    #in_file = laspy.read(raw_path)
     n_points = len(in_file)
     x = np.reshape(in_file.x, (n_points, 1))
     y = np.reshape(in_file.y, (n_points, 1))
@@ -63,7 +64,7 @@ def main():
     args = parse_args()
     base_dir = Path(args.folder)
 
-    dataset_dict = {'trn': [], 'val': [], 'tst': []}
+    dataset_dict = {'train': [], 'test': []}
 
     # List .las files in each dataset.
     for dataset in dataset_dict.keys():
@@ -72,7 +73,7 @@ def main():
         if len(dataset_dict[dataset]) == 0:
             warnings.warn(f"{base_dir / dataset} is empty")
 
-    print(f"Las files per dataset:\n Trn: {len(dataset_dict['trn'])} \n Val: {len(dataset_dict['val'])} \n Tst: {len(dataset_dict['tst'])}")
+    #print(f"Las files per dataset:\n Trn: {len(dataset_dict['trn'])} \n Val: {len(dataset_dict['val'])} \n Tst: {len(dataset_dict['tst'])}")
 
     # Write new hdfs of XYZ + number of return + intensity, with labels.
     for dst, values in dataset_dict.items():
@@ -80,7 +81,7 @@ def main():
             # make store directories
             path_prepare_label = Path(args.dest, dst)
             path_prepare_label.mkdir(exist_ok=True)
-
+            print(base_dir / dst / elem)
             xyzni, label, nb_pts = read_las_format(base_dir / dst / elem)
 
             write_features(f"{path_prepare_label / elem.split('.')[0]}_prepared.hdfs", xyzni=xyzni, labels=label)
