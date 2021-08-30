@@ -21,7 +21,7 @@ import h5py
 from pathlib import Path
 from examples.airborne_lidar.airborne_lidar_viz import prediction2ply, error2ply
 import wandb
-wandb.init()
+#wandb.init()
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -421,7 +421,7 @@ def train(args, dataset_dict, info_class):
             train_loss += loss.detach().cpu().item()
 
             t.set_postfix(OA=wblue(oa), AA=wblue(f"{acc[0]:.4f}"), IOU=wblue(f"{iou[0]:.4f}"), LOSS=wblue(f"{train_loss / cm.sum():.4e}"))
-            wandb.log({'trn/oa': oa, 'trn/loss': train_loss/ cm.sum(), 'trn/iou': iou[0]}, on_epoch=True)
+            wandb.log({'trn/oa': cm, 'trn/loss': train_loss/ cm.sum(), 'trn/iou': iou[0]})
 
         fscore = metrics.stats_f1score_per_class(cm)
         trn_metrics_values = {'loss': f"{train_loss / cm.sum():.4e}", 'acc': acc[0], 'iou': iou[0], 'fscore': fscore[0]}
@@ -459,7 +459,7 @@ def train(args, dataset_dict, info_class):
 
                 t.set_postfix(OA=wgreen(oa_val), AA=wgreen(f"{acc_val[0]:.4f}"), IOU=wgreen(f"{iou_val[0]:.4f}"),
                               LOSS=wgreen(f"{val_loss / cm_val.sum():.4e}"))
-                wandb.log({'val/oa': oa_val, 'val/loss': val_loss// cm_val.sum(), 'val/iou': iou_val[0]}, on_epoch= True)
+                wandb.log({'val/oa': cm_val, 'val/loss': val_loss/ cm_val.sum(), 'val/iou': iou_val[0]})
 
         fscore_val = metrics.stats_f1score_per_class(cm_val)
 
