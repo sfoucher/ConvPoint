@@ -21,7 +21,7 @@ import h5py
 from pathlib import Path
 from examples.airborne_lidar.airborne_lidar_viz import prediction2ply, error2ply
 import wandb
-#wandb.init()
+wandb.init()
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -59,14 +59,15 @@ def parse_args():
     blocksize = args.blocksize,
     npoints = args.npoints,
     architecture = args.model,
+    epochs= args.nepochs
     )
-
-    wandb.init(
-    project="convpoint-dales",
-    notes="tweak baseline",
-    tags=["convpoint", "lidar"],
-    config=config,
-    )
+    wandb.config.update(config)
+    #wandb.init(
+    #project="convpoint-dales",
+    #notes="tweak baseline",
+    #tags=["convpoint", "lidar"],
+    #config=config,
+    #)
     return args
 
 
