@@ -26,7 +26,8 @@ def read_las_format(raw_path, normalize=True):
     """Extract data from a .las file.
     If normalize is set to True, will normalize XYZ and intensity between 0 and 1."""
 
-    in_file = laspy.file.File(raw_path, mode='r')
+    #in_file = laspy.file.File(raw_path, mode='r') # for laspy==1.*
+    in_file = laspy.read(raw_path)
     n_points = len(in_file)
     x = np.reshape(in_file.x, (n_points, 1))
     y = np.reshape(in_file.y, (n_points, 1))
